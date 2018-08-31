@@ -37,11 +37,10 @@ class Search extends Component {
   }
 
   async searchBus() {
-    let datePicker = moment(this.state.startDate).format("YYYY-MM-DD");
-    let startDate = new Date(`${datePicker} 00:00:00`);
-    let endDate = new Date(`${datePicker} 23:59:59`);
-    let busesData = [];
-    let routes = await db.collection("Bus_routes")
+    const datePicker = moment(this.state.startDate).format("YYYY-MM-DD");
+    const startDate = new Date(`${datePicker} 00:00:00`);
+    const endDate = new Date(`${datePicker} 23:59:59`);
+    const routes = await db.collection("Bus_routes")
       .where("Date", ">=", startDate)
       .where("Date", "<=", endDate)
       .where("From", "==", this.state.from)
@@ -49,19 +48,27 @@ class Search extends Component {
       .get().catch(function (error) {
         console.log("Error getting document:", error);
       });
-    routes.forEach(async route => {
+    const busesData = [];
+    const promisesBus = [];
+    routes.forEach(route => {
       let busID = route.data().BusID;
       if (busID) {
-        const bus = await db.collection("Bus").doc(busID).get().catch(function (error) {
+        const bus = db.collection("Bus").doc(busID).get().catch(function (error) {
           console.log("Error getting document:", error);
         });
+        promisesBus.push(bus);
         busesData.push({
           routeID: route.id,
           routeData: route.data(),
-          busData: bus.data(),
         })
       }
     });
+
+    const busData = await Promise.all(promisesBus);
+    busData.forEach((bus, index)=>{
+      busesData[index].busData = bus.data();
+    });
+
     this.props.dispatch({type: "GET_BUSES", data: busesData });
   }
 
@@ -103,11 +110,6 @@ class Search extends Component {
   }
 
   render() {
-    console.log(this.props.buses);
-    this.props.buses.map((bus, index) =>{
-      console.log(index);
-      return '';
-    });
     return (
       <div className="App">
         <header className="App-header">
@@ -146,7 +148,7 @@ class Search extends Component {
               <img src={bus.busData.Images[0]} alt=""/>
               <p>Name: {bus.busData.Name}</p>
               <p>Time: {moment.unix(bus.routeData.Date.seconds).format("hh:mm")}</p>
-              <p>Price: {this.number_format(bus.routeData.Price, 0, ".", ",")}</p>
+              <p>Price: {this.number_format(bus.routeData.Price, 0, ",", ".")} đ</p>
             </li>
           )}
         </ul>
